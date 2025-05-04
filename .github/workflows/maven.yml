@@ -14,12 +14,12 @@ jobs:
       - name: Step 1 - Print Message and Delay
         run: |
           echo "Step 1 executed"
-          sleep 60
+          sleep 15
 
       - name: Step 2 - Print Message and Delay
         run: |
           echo "Step 2 executed"
-          sleep 60
+          sleep 15
 
       - name: Step 3 - Invoke API with PR Number and Commit ID
         env:
@@ -27,7 +27,7 @@ jobs:
           COMMIT_ID: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "Step 3 executed"
-          sleep 60
+          sleep 5
           RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
