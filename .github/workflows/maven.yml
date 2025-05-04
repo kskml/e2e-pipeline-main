@@ -21,18 +21,24 @@ jobs:
           echo "Step 2 executed"
           sleep 15
 
-      - name: Step 3 - Invoke API with PR Number and Commit ID
+      - name: Step 3 - Retrieve PR Number and Invoke API
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+          COMMIT_ID: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Step 3 executed"
           sleep 5
+          # Query GitHub API to find PR associated with the commit
+          PR_NUMBER=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_ID/pulls" | \
+            jq -r '.[0].number // "none"')
+          echo "PR Number: $PR_NUMBER"
+          # Invoke API with PR number and commit ID
           RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
             -d "{\"pr_number\": \"$PR_NUMBER\", \"commit_id\": \"$COMMIT_ID\"}" \
-            "https://wicked-wolves-behave.loca.lt/webhook/telemetry")
+            "http://localhost:8080/api/v1/test")
           if [ "$RESPONSE_CODE" -eq 200 ]; then
             echo "API call successful with status code $RESPONSE_CODE"
           else
