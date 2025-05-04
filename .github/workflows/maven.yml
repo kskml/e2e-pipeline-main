@@ -1,7 +1,7 @@
 name: CI Pipeline with API Invocation
 
 on:
-  pull_request:
+  push:
     branches:
       - main
       - hotfix/**
