@@ -1,0 +1,41 @@
+name: CI Pipeline with API Invocation
+
+on:
+  pull_request:
+    branches:
+      - main
+      - hotfix/**
+      - feature/**
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Step 1 - Print Message and Delay
+        run: |
+          echo "Step 1 executed"
+          sleep 60
+
+      - name: Step 2 - Print Message and Delay
+        run: |
+          echo "Step 2 executed"
+          sleep 60
+
+      - name: Step 3 - Invoke API with PR Number and Commit ID
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Step 3 executed"
+          sleep 60
+          RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"pr_number\": \"$PR_NUMBER\", \"commit_id\": \"$COMMIT_ID\"}" \
+            "https://api.example.com/api/v1/test")
+          if [ "$RESPONSE_CODE" -eq 200 ]; then
+            echo "API call successful with status code $RESPONSE_CODE"
+          else
+            echo "API call failed with status code $RESPONSE_CODE"
+            exit 1
+          fi
