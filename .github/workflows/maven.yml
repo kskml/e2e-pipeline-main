@@ -38,7 +38,7 @@ jobs:
             -X POST \
             -H "Content-Type: application/json" \
             -d "{\"pr_number\": \"$PR_NUMBER\", \"commit_id\": \"$COMMIT_ID\"}" \
-            "http://localhost:8080/api/v1/test")
+            "https://wicked-wolves-behave.loca.lt/webhook/telemetry")
           if [ "$RESPONSE_CODE" -eq 200 ]; then
             echo "API call successful with status code $RESPONSE_CODE"
           else
