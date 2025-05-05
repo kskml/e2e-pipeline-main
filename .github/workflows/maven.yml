@@ -1,7 +1,7 @@
 name: CI Pipeline with API Invocation
 
 on:
-  push:
+  pull_request:
     branches:
       - main
       - hotfix/**
@@ -27,6 +27,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Step 3 executed"
+          echo "dont invoke for failed validation"
           sleep 5
           # Query GitHub API to find PR associated with the commit
           PR_NUMBER=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
