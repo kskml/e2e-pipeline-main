@@ -42,11 +42,15 @@ jobs:
         id: file-contents
         if: steps.changed-files.outputs.files
         run: |
-          echo "files=${{ steps.changed-files.outputs.files }}" >> $GITHUB_ENV
-          for file in ${{ steps.changed-files.outputs.files }}; do
-            content=$(cat "$file" | base64)
-            echo "CONTENT_$file=$content" >> $GITHUB_ENV
+          files="${{ steps.changed-files.outputs.files }}"
+          all_contents=""
+          for file in $files; do
+            base64_content=$(base64 "$file" | tr -d '\n')
+            all_contents+="==== $file ====\n$base64_content\n"
           done
+          echo "all_contents<<EOF" >> $GITHUB_OUTPUT
+          echo "$all_contents" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Call Gemini API for Code Review
         id: gemini-review
