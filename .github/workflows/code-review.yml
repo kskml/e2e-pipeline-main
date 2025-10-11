@@ -1,0 +1,81 @@
+name: AI-Powered Java Code Review with Gemini
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.java'  # Trigger only for Java file changes
+
+permissions:
+  contents: read       # To read repository contents
+  pull-requests: write # To comment on pull requests
+
+jobs:
+  gemini-code-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for diff
+
+      - name: Get Changed Java Files
+        id: changed-files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const diff = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            })
+            const javaFiles = diff.data
+              .filter(file => file.filename.endsWith('.java'))
+              .map(file => ({
+                filename: file.filename,
+                patch: file.patch
+              }))
+            core.setOutput('files', javaFiles.map(f => f.filename).join(' '))
+            core.setOutput('diff', JSON.stringify(javaFiles))
+
+      - name: Fetch File Contents
+        id: file-contents
+        if: steps.changed-files.outputs.files
+        run: |
+          echo "files=${{ steps.changed-files.outputs.files }}" >> $GITHUB_ENV
+          for file in ${{ steps.changed-files.outputs.files }}; do
+            content=$(cat "$file" | base64)
+            echo "CONTENT_$file=$content" >> $GITHUB_ENV
+          done
+
+      - name: Call Gemini API for Code Review
+        id: gemini-review
+        if: steps.changed-files.outputs.files
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          response=$(curl -s -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "contents": [{
+                "parts": [{
+                  "text": "You are an expert Java code reviewer. Analyze the provided Java code changes (file contents and diffs) for:\n- Code quality (e.g., naming conventions, readability)\n- Potential bugs (e.g., null pointer risks, improper exception handling)\n- Java best practices (e.g., use of Optional, proper logging)\n- Security issues (e.g., SQL injection, unchecked inputs)\nProvide concise, actionable feedback for each file. If no issues are found, say \"Looks good!\" For each issue, include:\n- File name\n- Line number (if identifiable from diff)\n- Issue description\n- Suggested fix\nFormat the response as a markdown list for clarity.\n\nChanged files: ${{ steps.changed-files.outputs.files }}\nDiffs: ${{ steps.changed-files.outputs.diff }}\nFile contents: ${{ env.files }}\n${{ env.CONTENT_${{ steps.changed-files.outputs.files }} }}"
+                }]
+              }]
+            }')
+          echo "response=$(echo $response | jq -r '.candidates[0].content.parts[0].text')" >> $GITHUB_OUTPUT
+
+      - name: Post Gemini Review Comments
+        if: steps.changed-files.outputs.files && steps.gemini-review.outputs.response
+        uses: actions/github-script@v7
+        env:
+          GEMINI_FEEDBACK: ${{ steps.gemini-review.outputs.response }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `### Gemini AI Code Review Feedback\n\n${process.env.GEMINI_FEEDBACK}`
+            })
