@@ -1,0 +1,44 @@
+name: 'AI Code Review with Gemini'
+
+# Trigger the workflow on Pull Request events
+on:
+  pull_request:
+    types: [opened, synchronize] # 'synchronize' triggers on new commits
+
+jobs:
+  ai-review:
+    name: 'AI Code Review'
+    # Run on the standard GitHub-hosted Ubuntu runner
+    runs-on: ubuntu-latest
+
+    # Grant the action permission to post comments on the PR
+    permissions:
+      pull-requests: write
+      contents: read # Required to check out the code
+
+    steps:
+      # 1. Check out the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history to get a proper diff
+          fetch-depth: 0
+
+      # 2. Set up Python environment
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # 3. Install the Google Generative AI library
+      - name: Install dependencies
+        run: pip install google-generativeai requests
+
+      # 4. Run our custom Python script
+      - name: Run AI Review Script
+        env:
+          # Pass secrets and environment variables to the script
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          python scripts/review_pr.py
